@@ -3,6 +3,7 @@ package com.chenmual.netty.l_09_nio;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -35,28 +36,25 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
         private static int packetLength = -1;
 
         public static void main(String[] args) throws IOException {
-            ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
-            serverSocketChannel.bind(new InetSocketAddress(server_port));
-            serverSocketChannel.configureBlocking(false);
-
-
             Selector selector = Selector.open();
-
+            ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+            serverSocketChannel.configureBlocking(false);
+            // 注意：服务端暴露端口，是使用serverSocket#bind方法。
+            ServerSocket serverSocket = serverSocketChannel.socket();
+            serverSocket.bind(new InetSocketAddress(server_port));
 
             serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
 
             while (true) {
-                int select = selector.select();
-                System.out.println(("存在" + select + "个感兴趣的事件。"));
-
+                selector.select(1000); // select是阻塞的。设置一个超时时间，超时之后仍然没有接收关心的事件，就不再等待。
                 Set<SelectionKey> selectionKeys = selector.selectedKeys();
                 for (SelectionKey selectionKey : selectionKeys) {
-
                     if (selectionKey.isAcceptable()) {
                         ServerSocketChannel channel = (ServerSocketChannel) selectionKey.channel();
                         SocketChannel clientSocket = channel.accept();
                         clientSocket.configureBlocking(false);
+
                         clientSocket.register(selector, SelectionKey.OP_READ, clientSocket);
                     } else if (selectionKey.isReadable()) {
                         SocketChannel clientSocket = (SocketChannel) selectionKey.attachment();
@@ -119,7 +117,7 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
             SocketChannel socketChannel = SocketChannel.open();
             socketChannel.configureBlocking(false);
 
-            socketChannel.connect(new InetSocketAddress("localhost", server_port));
+            socketChannel.connect(new InetSocketAddress("127.0.0.1", server_port));
 
             Selector selector = Selector.open();
 
@@ -128,35 +126,54 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
 
             // 客户端只发送数据
             while (true) {
-                int select = selector.select();
-                System.out.println("当前有" + select + "个关心的事件被触发。");
+                selector.select(1000);
                 Set<SelectionKey> selectionKeys = selector.selectedKeys();
                 for (SelectionKey selectionKey : selectionKeys) {
                     if (selectionKey.isConnectable()) {
+                        SocketChannel client = (SocketChannel) selectionKey.channel();
+                        if (client.isConnectionPending()) {
+                            // 等待连接真正建立好
+                            client.finishConnect();
 
-                        SocketChannel channel = (SocketChannel) selectionKey.channel();
-                        channel.register(selector, SelectionKey.OP_WRITE);
+                            new Thread(() -> {
+                                while (true) {
+                                    writeMessageToServer(selectionKey);
+                                    try {
+                                        Thread.sleep(1000);
+                                    } catch (InterruptedException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            }).start();
 
-                        // todo:register和下面这句有什么区别？
-                        // selectionKey.interestOps(SelectionKey.OP_WRITE);
+                        }
 
-                    } else if (selectionKey.isWritable()) { // todo:可写事件，是在什么情况下被触发的？
 
-                        SocketChannel channel = (SocketChannel) selectionKey.channel();
-                        // 生成随机长度的随机字符串。作为客户端发送给服务端的【真实数据】
-                        String dataMessage = getRandomString(random.nextInt(100));
-                        byte[] dataMessageBytes = dataMessage.getBytes(Charset.forName("UTF-8"));
-
-                        ByteBuffer outgoingBuffer = ByteBuffer.allocate(4 + dataMessageBytes.length);
-                        outgoingBuffer.putInt(dataMessageBytes.length); // 数据长度
-                        outgoingBuffer.put(dataMessageBytes); // 真实数据
-
-                        // socket发送数据。
-                        channel.write(outgoingBuffer);
                     }
                 } // -- end   for selectionKeys
                 selectionKeys.clear();
             }// -- end wile true
+        }
+
+        private static void writeMessageToServer(SelectionKey selectionKey) {
+            SocketChannel channel = (SocketChannel) selectionKey.channel();
+            // 生成随机长度的随机字符串。作为客户端发送给服务端的【真实数据】
+            String dataMessage = getRandomString(random.nextInt(100));
+            System.out.println("client send : " + dataMessage);
+            byte[] dataMessageBytes = dataMessage.getBytes(Charset.forName("UTF-8"));
+
+            ByteBuffer outgoingBuffer = ByteBuffer.allocate(4 + dataMessageBytes.length);
+            outgoingBuffer.putInt(dataMessageBytes.length); // 数据长度
+            outgoingBuffer.put(dataMessageBytes); // 真实数据
+            // 注意：这里把数据put到byteBuffer中后，需要flip一下：否则客户端不会发送任何数据。
+            outgoingBuffer.flip();
+
+            try {
+                // socket发送数据。
+                channel.write(outgoingBuffer);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         /**
