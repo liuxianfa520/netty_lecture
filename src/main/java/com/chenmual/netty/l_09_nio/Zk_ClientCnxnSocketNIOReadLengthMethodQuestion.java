@@ -63,13 +63,15 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
                         if (readCount < 0) {
                             throw new RuntimeException("socket中读取数据长度为【" + readCount + "】，如果是-1，则说明channel has reached end-of-stream");
                         }
-                        // todo:为何要加上这句话？
+                        // 如果上面sock.read(incomingBuffer)读完一段数据后，byteBuffer没有剩余空间了:
                         if (!incomingBuffer.hasRemaining()) {
                             incomingBuffer.flip();
 
                             if (incomingBuffer == lengthBuffer) {
-                                // 说明读取的是数据包长度。客户端发来的数据包格式：【数据包总长度+真实数据】
+                                // 相等，则说明读取的是数据包长度。客户端发来的数据包格式：【数据包总长度+真实数据】
                                 readLength();
+                                // todo:  【对于readLength()方法的疑问】：readLength()只是把数据包长度读出来，并根据长度分配一个用于接收真实数据的buffer,
+                                // todo:    但是读取真实数据，需要等到下一次selector.select()了。nio还能这样玩？
 
                             } else {
                                 // 否则的话，就是读取 真实数据
@@ -78,7 +80,6 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
                                 System.out.println("接收到client发来的数据：【" + new String(bytes) + "】");
                                 reset();
                             }
-
                         }
                     }
                 }
@@ -88,7 +89,7 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
         }
 
         /**
-         * 一次客户端请求读取完毕之后，进行数据重置，等待下一次读取。
+         * 一次客户端请求读取完毕之后，进行数据重置，等待下一条消息的读取。
          */
         private static void reset() {
             packetLength = -1;
