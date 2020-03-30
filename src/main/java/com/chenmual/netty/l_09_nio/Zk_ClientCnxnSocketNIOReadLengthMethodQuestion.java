@@ -1,7 +1,5 @@
 package com.chenmual.netty.l_09_nio;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -15,11 +13,13 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- *
+ * <pre>
  * 在阅读zk源码时，对于ClientCnxnSocketNIO#readLength()方法的疑问：
  *
  * readLength()方法只读取了数据包总长度length，并且创建了一个length长度的byteBuffer；
  * 但没有把socket中数据读取到incomingBuffer中。这是什么原理的？
+ *
+ * </pre>
  *
  * @author LiuXianfa
  * @email xianfaliu@newbanker.cn
@@ -30,8 +30,6 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
     private static final int server_port = 8080;
 
     static class Server {
-        private static final Logger logger = LoggerFactory.getLogger(Server.class);
-
         private static ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
         private static ByteBuffer incomingBuffer = lengthBuffer;
         private static int packetLength = -1;
@@ -50,7 +48,7 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
 
             while (true) {
                 int select = selector.select();
-                logger.info("存在{}个感兴趣的事件。", select);
+                System.out.println(("存在" + select + "个感兴趣的事件。"));
 
                 Set<SelectionKey> selectionKeys = selector.selectedKeys();
                 for (SelectionKey selectionKey : selectionKeys) {
@@ -106,14 +104,13 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
                 throw new RuntimeException("客户端发来数据包总长度，不能小于0");
             }
 
-            logger.info("client 发来数据总长度为：{}", packetLength);
+            System.out.println("client 发来数据总长度为：" + packetLength);
             incomingBuffer = ByteBuffer.allocate(packetLength);
         }
 
     }
 
     static class Client {
-        private static final Logger logger = LoggerFactory.getLogger(Client.class);
 
         private static Random random = new Random(25);
 
@@ -132,7 +129,7 @@ public class Zk_ClientCnxnSocketNIOReadLengthMethodQuestion {
             // 客户端只发送数据
             while (true) {
                 int select = selector.select();
-                logger.info("当前有{}个关心的事件被触发。", select);
+                System.out.println("当前有" + select + "个关心的事件被触发。");
                 Set<SelectionKey> selectionKeys = selector.selectedKeys();
                 for (SelectionKey selectionKey : selectionKeys) {
                     if (selectionKey.isConnectable()) {
