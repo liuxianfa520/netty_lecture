@@ -1,3 +1,4 @@
+
 张龙老师netty视频讲解示例代码
 
 主要包括netty/nio编程/thrift/grpc相关
@@ -6,10 +7,13 @@
 
 
 
+==================================================================================
 
 
-此项目是由gradle打包的，我们java工程师都是比较熟悉maven打包工具的。
-如果你也遇到这个问题：
+
+
+
+此项目是由gradle打包的，如果你也遇到这个问题：
 
     Error:No such property: GradleVersion for class: JetGradlePlugin
 ![Error:No such property: GradleVersion for class: JetGradlePlugin](https://github.com/liuxianfa520/netty_lecture/blob/master/gradle-%E6%8A%A5%E9%94%99.png "错误图片")
